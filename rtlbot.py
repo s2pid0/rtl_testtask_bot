@@ -83,7 +83,16 @@ async def aggregate(message: Message):
     }
     
     for document in cursor:
-        document['labels'] = document['labels'].replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if group_type == "hour":
+            document['labels'] = document['labels'].replace(minute=0, second=0, microsecond=0)
+        elif group_type == "day":
+            document['labels'] = document['labels'].replace(hour=0, minute=0, second=0, microsecond=0)
+        elif group_type == "month":
+            document['labels'] = document['labels'].replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        elif group_type == "year":
+            document['labels'] = document['labels'].replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        
         print(datetime.isoformat(document['labels']))
         result["dataset"].append(document['dataset'])
         result['labels'].append(datetime.isoformat(document['labels']))
