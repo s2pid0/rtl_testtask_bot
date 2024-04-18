@@ -5,7 +5,8 @@ import json
 import os
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters.command import Command
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from aiogram.types import Message
 from aiogram.types.force_reply import ForceReply
 from aiogram.filters import Command
@@ -22,7 +23,6 @@ class Secrets:
 logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=Secrets.token)
-# bot = Bot(token='6726224615:AAEwI9h1VMDz9g01cgv540FlN8XgcZQzpog')
 
 dp = Dispatcher()
 
@@ -32,7 +32,6 @@ dp = Dispatcher()
 async def cmd_start(message: types.Message):
     await message.answer("hello", reply_markup=ForceReply())
 
-# Запуск процесса поллинга новых апдейтов
 async def main():
     await dp.start_polling(bot)
 
@@ -49,7 +48,7 @@ async def aggregate(message: Message):
     if group_type == "hour":
         group_field = {"$hour": "$dt"}
     elif group_type == "day":
-        group_field = {"$dayOfMonth": "$dt"}
+        group_field = {"$dayOfYear": "$dt"}
     elif group_type == "month":
         group_field = {"$month": "$dt"}
     elif group_type == "year":
@@ -74,6 +73,7 @@ async def aggregate(message: Message):
         {
         '$sort': {
             '_id': 1
+            
         }
     }])
 
@@ -81,7 +81,26 @@ async def aggregate(message: Message):
         "dataset":[],
         "labels": []
     }
+
+    fromquery = {
+        "dataset":[],
+        "labels": []
+    }
     
+
+    if group_type == "hour":
+            n = relativedelta(hours=1)
+    elif group_type == "day":
+            n = relativedelta(days=1)
+    elif group_type == "month":
+            n = relativedelta(months=1)
+    elif group_type == "year":
+            n = relativedelta(years=1)
+    date = datetime.fromisoformat(dt_from)
+    while date <= datetime.fromisoformat(dt_upto):
+        result["labels"].append(datetime.isoformat(date))
+        result['dataset'].append(0)
+        date += n
     for document in cursor:
         if group_type == "hour":
             document['labels'] = document['labels'].replace(minute=0, second=0, microsecond=0)
@@ -91,12 +110,15 @@ async def aggregate(message: Message):
             document['labels'] = document['labels'].replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         elif group_type == "year":
             document['labels'] = document['labels'].replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        print(type(document['labels']))
+        for i in range(len(result["labels"])):
+            print(str(result["labels"][i]))
+            print('from doc', document['labels'])
+            if datetime.fromisoformat(result["labels"][i]) == document['labels']:
+                print(result["dataset"][i], "and", document['dataset'])
+                result["dataset"][i] = document['dataset']
+                break
         
-        
-        print(datetime.isoformat(document['labels']))
-        result["dataset"].append(document['dataset'])
-        result['labels'].append(datetime.isoformat(document['labels']))
-
     print(result)
     
     await message.answer(json.dumps(result))
